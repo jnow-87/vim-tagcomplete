@@ -159,7 +159,13 @@ function! CheckChar()
 	
 	if match(mychar, "[abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890_]") == 0
 		let s:doappend=0
-		return "\<C-X>\<c-i>" 
+
+		if &omnifunc==''
+			return "\<C-X>\<c-i>" 
+		endif
+
+		return "\<C-X>\<c-o>" 
+
 	elseif match(mychar, "(") != 0
 		return ''
 	endif
@@ -224,6 +230,7 @@ function! CodeComplete()
 		if tmp == ''
 			return "\<tab>"
 		endif
+
 		return tmp
 
 	elseif s:state == 1		" insert function stuff
@@ -233,6 +240,7 @@ function! CodeComplete()
 	        if funcres != ''
     	        let s:doappend = 0
         	endif
+
 	        return funcres
     	else
         	let template_name = substitute(getline('.')[:(col('.')-2)],'\zs.*\W\ze\w*$','','g')
@@ -240,6 +248,7 @@ function! CodeComplete()
     	    if tempres != ''
         	    let s:doappend = 0
 	        endif
+
     	    return tempres
 	    endif
 
