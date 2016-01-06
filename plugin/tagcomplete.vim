@@ -74,12 +74,20 @@ let s:signature_list = []
 let s:jumppos = -1
 let s:doappend = 1
 let s:completed = 0
-"let s:state = -1
-let s:state = 0	" -1 - normal insertion
-					" 0 - normal insertion (make tab after one completion)
-					" 1 - ( discovered
-					" 2 - completion inside ()
-					" 3 - switch region inside ()
+"let s:tab_state = -1
+let s:tab_state = 0 
+	" state used for handling g:completekey actions
+	" -1 - normal insertion
+	" 0 - normal insertion (make tab after one completion)
+	" 1 - ( discovered
+	" 2 - completion inside ()
+	" 3 - switch region inside ()
+
+let s:compl_state = 0
+	" state used for handling completion type (depending on popup menu (pum) state)
+	" 0 - pum not visible
+	" 1 - pum visible
+
 
 " Autocommands: {{{1
 "autocmd BufReadPost,BufNewFile *.[ch],*.cc call CodeCompleteStart()
@@ -159,12 +167,23 @@ function! CheckChar()
 	
 	if match(mychar, "[abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890_]") == 0
 		let s:doappend=0
-
-		if &omnifunc==''
-			return "\<C-X>\<c-i>" 
+		
+		if &omnifunc != ''
+			if pumvisible() == 1
+				if s:compl_state == 1
+					let s:compl_state = 0
+					return "\<c-x>\<c-o>"
+				else
+					let s:compl_state = 1
+					return "\<c-x>\<c-i>"
+				endif
+			else
+				let s:compl_state = 1
+				return "\<c-x>\<c-i>"
+			endif
 		endif
-
-		return "\<C-X>\<c-o>" 
+	
+		return "\<c-x>\<c-i>"
 
 	elseif match(mychar, "(") != 0
 		return ''
@@ -173,10 +192,10 @@ function! CheckChar()
 endfunction
 
 function! SwitchRegion()
-	if s:state == 1
-		let s:state = 2
-	elseif s:state == 4
-		let s:state = 2
+	if s:tab_state == 1
+		let s:tab_state = 2
+	elseif s:tab_state == 4
+		let s:tab_state = 2
 	else 
 		return ''
 	endif
@@ -201,8 +220,8 @@ function! SwitchRegion()
        	endif
        	return "\<c-\>\<c-n>gvo\<c-g>"
    	else
-"		let s:state = -1
-		let s:state = 0
+"		let s:tab_state = -1
+		let s:tab_state = 0
        	if s:doappend == 1
            	if g:completekey == "<tab>"
                return "\<tab>"
@@ -218,22 +237,23 @@ function! CodeComplete()
 	let tmp = CheckChar()
 
 	if tmp == '('
-		let s:state = 1
+		let s:tab_state = 1
 	endif
 
-"	if s:state == 0
-"		let s:state = -1
+
+"	if s:tab_state == 0
+"		let s:tab_state = -1
 "		return "\<tab>"
-"	elseif s:state == -1
-	if s:state == 0
-"		let s:state = 0
+"	elseif s:tab_state == -1
+	if s:tab_state == 0
+"		let s:tab_state = 0
 		if tmp == ''
 			return "\<tab>"
 		endif
 
 		return tmp
 
-	elseif s:state == 1		" insert function stuff
+	elseif s:tab_state == 1		" insert function stuff
 		let function_name = matchstr(getline('.')[:(col('.')-2)],'\zs\w*\ze\s*(\s*$')
     	if function_name != ''
         	let funcres = FunctionComplete(function_name)
@@ -252,12 +272,12 @@ function! CodeComplete()
     	    return tempres
 	    endif
 
-	elseif s:state == 2
-		let s:state = 3
+	elseif s:tab_state == 2
+		let s:tab_state = 3
 		return tmp
 
-	elseif s:state == 3		" switch region
-		let s:state = 4
+	elseif s:tab_state == 3		" switch region
+		let s:tab_state = 4
 	endif
 
 	return tmp
