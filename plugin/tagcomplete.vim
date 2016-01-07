@@ -41,14 +41,17 @@ function s:init()
 "	exec "imap <expr> <buffer> <cr> pumvisible() ? '\<c-y>' : '\<cr>'"
 
 	" select next function argument
-	exec "inoremap <silent> <buffer> " . g:tagcomplete_next_key . " <esc>:call <sid>select_arg(0)<cr>"
-	exec "vnoremap <silent> <buffer> " . g:tagcomplete_next_key . " <esc>:call <sid>select_arg(0)<cr>"
-	exec "nnoremap <silent> <buffer> " . g:tagcomplete_next_key . " :call <sid>select_arg(0)<cr>"
+	exec "inoremap <silent> <buffer> " . g:tagcomplete_next_key . " <esc>:call <sid>select_arg('f', 'i')<cr>"
+	exec "vnoremap <silent> <buffer> " . g:tagcomplete_next_key . " <esc>:call <sid>select_arg('f', 'v')<cr>"
+	exec "nnoremap <silent> <buffer> " . g:tagcomplete_next_key . " :call <sid>select_arg('f', 'n')<cr>"
 
 	" select previous function argument
-	exec "inoremap <silent> <buffer> " . g:tagcomplete_prev_key . " <esc>:call <sid>select_arg(1)<cr>"
-	exec "vnoremap <silent> <buffer> " . g:tagcomplete_prev_key . " <esc>:call <sid>select_arg(1)<cr>"
-	exec "nnoremap <silent> <buffer> " . g:tagcomplete_prev_key . " :call <sid>select_arg(1)<cr>"
+	exec "inoremap <silent> <buffer> " . g:tagcomplete_prev_key . " <esc>:call <sid>select_arg('b', 'i')<cr>"
+	exec "vnoremap <silent> <buffer> " . g:tagcomplete_prev_key . " <esc>:call <sid>select_arg('b', 'v')<cr>"
+	exec "nnoremap <silent> <buffer> " . g:tagcomplete_prev_key . " :call <sid>select_arg('b', 'n')<cr>"
+
+	" autocmd to select first function argument of signature
+	autocmd CompleteDone <buffer> call feedkeys("\<esc>") | call s:select_arg('i', 'i')
 
 	" highlight function arguments
 	exec "syn region tagcomplete_arg matchgroup=None start='" . s:mark_l . "' end='" . s:mark_r . "' concealends"
@@ -72,14 +75,14 @@ function s:check_char()
 endfunction
 "}}}
 
-function s:select_arg(backward)
+function s:select_arg(search_mode, vim_mode)
 "{{{
 	" get line and cursor
 	let line = getline('.')
 	let [ bnum, lnum, col, off ] = getpos('.')
 
 	" search start and end pattern
-	if a:backward
+	if a:search_mode == 'b'
 		let e = strridx(line, s:mark_r, col - len(s:mark_r) - 1)
 		let e = (e != -1 ? e : strridx(line, s:mark_r, len(line)))
 		let s = strridx(line, s:mark_l, e)
@@ -91,7 +94,22 @@ function s:select_arg(backward)
 
 	" return if no valid region found
 	if s == -1 || e == -1
+		" jump back to insert mode if no match found and coming
+		" from insert mode
+		if a:vim_mode == 'i'
+			call feedkeys("i\<right>")
+		endif
+
 		return
+	endif
+
+	" when selecting an argument right after calling compl_signature()
+	" the cursor is somehow moved left once through the autocommand on
+	" 'CompleteDone', even though feedkeys("\<esc>") is executed before
+	" calling select_arg(), to compensate for that move the selection to
+	" the right by 1
+	if a:search_mode == 'i'
+		let e += 1
 	endif
 
 	" select region if found
@@ -152,7 +170,7 @@ function s:compl_code()
 		return "\<c-n>"
 	endif
 
-	let char = <sid>check_char()
+	let char = s:check_char()
 
 	if char == ''
 		return "\<tab>"
@@ -160,9 +178,7 @@ function s:compl_code()
 	elseif char == '('
 		let function_name = matchstr(getline('.')[:(col('.')-2)],'\zs\w*\ze\s*(\s*$')
     	if function_name != ''
-        	let funcres = <sid>compl_signature(function_name)
-
-	        return funcres
+        	return s:compl_signature(function_name)
 	    endif
 	endif
 
@@ -175,5 +191,5 @@ endfunction
 "" autocommands
 """"
 "{{{
-autocmd BufReadPost,BufNewFile * call <sid>init()
+autocmd BufReadPost,BufNewFile * call s:init()
 "}}}
