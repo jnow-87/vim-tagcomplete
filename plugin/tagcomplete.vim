@@ -64,7 +64,7 @@ function s:check_char()
 "{{{
 	let char = getline('.')[getpos('.')[2] - 2]
 	
-	if match(char, "[a-zA-Z_]") == 0
+	if match(char, "[a-zA-Z0-9_]") == 0
 		return "\<c-n>"
 
 	elseif char != '('
