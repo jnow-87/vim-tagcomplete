@@ -38,7 +38,7 @@ function s:init()
 	" completion mappings
     exec "inoremap <buffer> " . g:tagcomplete_complete_key . " <c-r>=<sid>compl_code()<cr>"
 	exec "inoremap <expr> <buffer> " . s:tagcomplete_complete_key_shift . " pumvisible() ? '\<c-p>' : '" . g:tagcomplete_complete_key . "'"
-"	exec "imap <expr> <buffer> <cr> pumvisible() ? '\<c-y>' : '\<cr>'"
+	exec "imap <expr> <buffer> <cr> pumvisible() ? '\<c-y>' : '\<cr>'"
 
 	" select next function argument
 	exec "inoremap <silent> <buffer> " . g:tagcomplete_next_key . " <esc>:call <sid>select_arg('f', 'i')<cr>"
