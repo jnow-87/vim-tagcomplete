@@ -4,14 +4,21 @@ endif
 
 let g:loaded_tagcomplete = 1
 
+" get own script ID
+nmap <c-f11><c-f12><c-f13> <sid>
+let s:sid = "<SNR>" . maparg("<c-f11><c-f12><c-f13>", "n", 0, 1).sid . "_"
+nunmap <c-f11><c-f12><c-f13>
+
 
 """"
 "" global variables
 """"
 "{{{
-let g:tagcomplete_complete_key = get(g:, "tagcomplete_complete_key", "<tab>")
-let g:tagcomplete_next_key = get(g:, "tagcomplete_next_key", "<c-n>")
-let g:tagcomplete_prev_key = get(g:, "tagcomplete_prev_key", "<c-p>")
+let g:tagcomplete_map_complete = get(g:, "tagcomplete_map_complete", "<tab>")
+let g:tagcomplete_map_select = get(g:, "tagcomplete_map_select", "<cr>")
+let g:tagcomplete_map_next = get(g:, "tagcomplete_map_next", "<c-n>")
+let g:tagcomplete_map_prev = get(g:, "tagcomplete_map_prev", "<c-p>")
+
 let g:tagcomplete_ignore_filetype = get(g:, "tagcomplete_ignore_filetype", {})
 "}}}
 
@@ -22,11 +29,11 @@ let g:tagcomplete_ignore_filetype = get(g:, "tagcomplete_ignore_filetype", {})
 let s:mark_l = '´<'
 let s:mark_r = '>`'
 
-let s:tagcomplete_complete_key_shift = substitute(g:tagcomplete_complete_key, '<', "<s-", "")
+let s:tagcomplete_map_complete_shift = substitute(g:tagcomplete_map_complete, '<', "<s-", "")
 "}}}
 
 """"
-"" functions
+"" local functions
 """"
 "{{{
 function s:init()
@@ -36,27 +43,21 @@ function s:init()
 	endif
 
 	" completion mappings
-    exec "inoremap <buffer> " . g:tagcomplete_complete_key . " <c-r>=<sid>compl_code()<cr>"
-	exec "inoremap <expr> <buffer> " . s:tagcomplete_complete_key_shift . " pumvisible() ? '\<c-p>' : '" . g:tagcomplete_complete_key . "'"
-	exec "imap <expr> <buffer> <cr> pumvisible() ? '\<c-y>' : '\<cr>'"
+	call util#map#i(g:tagcomplete_map_complete, "<c-r>=" . s:sid . "compl_code()<cr>", "<buffer> noescape noinsert")
+	call util#map#i(s:tagcomplete_map_complete_shift, "pumvisible() ? '\<c-p>' : '" . g:tagcomplete_map_complete . "'", "<buffer> <expr> noescape noinsert")
+	call util#map#i(g:tagcomplete_map_select, "pumvisible() ? '\<c-y>' : '\<cr>'", "<buffer> <expr> noescape noinsert")
 
 	" select next function argument
-	exec "inoremap <silent> <buffer> " . g:tagcomplete_next_key . " <esc>:call <sid>select_arg('f', 'i')<cr>"
-	exec "vnoremap <silent> <buffer> " . g:tagcomplete_next_key . " <esc>:call <sid>select_arg('f', 'v')<cr>"
-	exec "nnoremap <silent> <buffer> " . g:tagcomplete_next_key . " :call <sid>select_arg('f', 'n')<cr>"
+	call util#map#nvi(g:tagcomplete_map_next, ":call " . s:sid . "select_arg('f')<cr>", "<buffer>")
 
 	" select previous function argument
-	exec "inoremap <silent> <buffer> " . g:tagcomplete_prev_key . " <esc>:call <sid>select_arg('b', 'i')<cr>"
-	exec "vnoremap <silent> <buffer> " . g:tagcomplete_prev_key . " <esc>:call <sid>select_arg('b', 'v')<cr>"
-	exec "nnoremap <silent> <buffer> " . g:tagcomplete_prev_key . " :call <sid>select_arg('b', 'n')<cr>"
+	call util#map#nvi(g:tagcomplete_map_prev, ":call " . s:sid . "select_arg('b')<cr>", "<buffer>")
 
 	" autocmd to select first function argument of signature
-	autocmd CompleteDone <buffer> call feedkeys("\<esc>") | call s:select_arg('i', 'i')
+	autocmd CompleteDone <buffer> call feedkeys("\<esc>") | call s:select_arg('i') | call feedkeys("i\<right>")
 
 	" highlight function arguments
 	exec "syn region tagcomplete_arg matchgroup=None start='" . s:mark_l . "' end='" . s:mark_r . "' concealends"
-
-	highlight default tagcomplete_arg ctermbg=33
 endfunction
 "}}}
 
@@ -75,7 +76,7 @@ function s:check_char()
 endfunction
 "}}}
 
-function s:select_arg(search_mode, vim_mode)
+function s:select_arg(search_mode)
 "{{{
 	" get line and cursor
 	let line = getline('.')
@@ -94,12 +95,6 @@ function s:select_arg(search_mode, vim_mode)
 
 	" return if no valid region found
 	if s == -1 || e == -1
-		" jump back to insert mode if no match found and coming
-		" from insert mode
-		if a:vim_mode == 'i'
-			call feedkeys("i\<right>")
-		endif
-
 		return
 	endif
 
@@ -192,4 +187,11 @@ endfunction
 """"
 "{{{
 autocmd BufReadPost,BufNewFile * call s:init()
+"}}}
+
+""""
+"" highlighting
+""""
+"{{{
+highlight default tagcomplete_arg ctermbg=33
 "}}}
